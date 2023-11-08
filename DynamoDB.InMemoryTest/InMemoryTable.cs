@@ -31,14 +31,16 @@ namespace DynamoDB.InMemoryTest
                 Items.Remove(existingItem);
         }
 
-        public List<Dictionary<string, AttributeValue>> QueryByKey(Dictionary<string, Condition> keyConditions)
+        public List<Dictionary<string, AttributeValue>> QueryByKey(Dictionary<string, Condition> keyConditions, string indexName)
         {
             return Items.Where(i =>
             {
-                var key = GetKey(i);
+                var key = GetKey(i, indexName);
                 return keyConditions.All(c =>
                 {
-                    var value = key[c.Key];
+                    if (!key.TryGetValue(c.Key, out var value))
+                        return false;
+
                     if (c.Value.ComparisonOperator == ComparisonOperator.EQ)
                     {
                         return Equals(c.Value.AttributeValueList[0], value);
@@ -51,9 +53,13 @@ namespace DynamoDB.InMemoryTest
             }).ToList();
         }
 
-        private Dictionary<string, AttributeValue> GetKey(Dictionary<string, AttributeValue> item)
+        private Dictionary<string, AttributeValue> GetKey(Dictionary<string, AttributeValue> item, string indexName = null)
         {
-            var keyNames = TableDescription.KeySchema.Select(k => k.AttributeName);
+            var keySchema = indexName is null
+                ? TableDescription.KeySchema
+                : TableDescription.GlobalSecondaryIndexes.First(i => i.IndexName == indexName).KeySchema;
+
+            var keyNames = keySchema.Select(k => k.AttributeName);
             return item.Where(i => keyNames.Contains(i.Key)).ToDictionary();
         }
 

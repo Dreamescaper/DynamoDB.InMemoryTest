@@ -53,12 +53,49 @@ namespace DynamoDB.InMemoryTest
             if (rangeProp != null)
             {
                 var name = rangeAttribute.AttributeName ?? rangeProp.Name;
+                if (lowerCase)
+                    name = name.ToLower();
+
                 var type = rangeProp.PropertyType == typeof(int) || rangeProp.PropertyType == typeof(long)
                     ? ScalarAttributeType.N
                     : ScalarAttributeType.S;
 
                 request.KeySchema.Add(new KeySchemaElement { AttributeName = name, KeyType = KeyType.RANGE });
                 request.AttributeDefinitions.Add(new AttributeDefinition { AttributeName = name, AttributeType = type });
+            }
+
+            var indexHashProps = props.Select(p => (p, a: p.GetCustomAttribute<DynamoDBGlobalSecondaryIndexHashKeyAttribute>())).Where(k => k.a != null);
+            var indexRangeProps = props.Select(p => (p, a: p.GetCustomAttribute<DynamoDBGlobalSecondaryIndexRangeKeyAttribute>())).Where(k => k.a != null);
+
+            foreach (var (indexHashProp, indexHashAttribute) in indexHashProps)
+            {
+                var name = indexHashAttribute.AttributeName ?? indexHashProp.Name;
+                if (lowerCase)
+                    name = name.ToLower();
+
+                var type = indexHashProp.PropertyType == typeof(int) || indexHashProp.PropertyType == typeof(long)
+                    ? ScalarAttributeType.N
+                    : ScalarAttributeType.S;
+
+                request.GlobalSecondaryIndexes.Add(new GlobalSecondaryIndex
+                {
+                    IndexName = indexHashAttribute.IndexNames[0],
+                    KeySchema = { new KeySchemaElement { AttributeName = name, KeyType = KeyType.HASH } }
+                });
+            }
+
+            foreach (var (indexRangeProp, indexRangeAttribute) in indexRangeProps)
+            {
+                var name = indexRangeAttribute.AttributeName ?? indexRangeProp.Name;
+                if (lowerCase)
+                    name = name.ToLower();
+
+                var type = indexRangeProp.PropertyType == typeof(int) || indexRangeProp.PropertyType == typeof(long)
+                    ? ScalarAttributeType.N
+                    : ScalarAttributeType.S;
+
+                var index = request.GlobalSecondaryIndexes.First(i => i.IndexName == indexRangeAttribute.IndexNames[0]);
+                index.KeySchema.Add(new KeySchemaElement { AttributeName = name, KeyType = KeyType.RANGE });
             }
 
             CreateTableAsync(request).Wait();

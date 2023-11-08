@@ -40,9 +40,10 @@ namespace DynamoDB.InMemoryTest
         private QueryResponse Query(QueryRequest request)
         {
             var table = _tables[request.TableName];
-            var items = table.QueryByKey(request.KeyConditions);
 
-            if (items.Any() && request.AttributesToGet.Any())
+            var items = table.QueryByKey(request.KeyConditions, request.IndexName);
+
+            if (items.Any() && request.AttributesToGet?.Any() == true)
             {
                 items = items.Select(i => i.Where(i => request.AttributesToGet.Contains(i.Key)).ToDictionary()).ToList();
             }
@@ -123,7 +124,7 @@ namespace DynamoDB.InMemoryTest
             var table = _tables[request.TableName];
             var item = table.GetItem(request.Key);
 
-            if (item != null && request.AttributesToGet.Any())
+            if (item != null && request.AttributesToGet?.Any() == true)
             {
                 item = item.Where(i => request.AttributesToGet.Contains(i.Key)).ToDictionary();
             }
