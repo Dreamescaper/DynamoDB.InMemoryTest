@@ -4,6 +4,7 @@ using Amazon.Runtime;
 using Amazon.Runtime.Internal;
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
@@ -31,9 +32,27 @@ namespace DynamoDB.InMemoryTest
                 UpdateItemRequest updateItemRequest => UpdateItem(updateItemRequest),
                 DeleteItemRequest deleteItemRequest => DeleteItem(deleteItemRequest),
                 BatchWriteItemRequest batchWriteItemRequest => BatchWriteItem(batchWriteItemRequest),
+                BatchGetItemRequest batchGetItemRequest => BatchGetItem(batchGetItemRequest),
                 QueryRequest queryRequest => Query(queryRequest),
 
                 _ => throw new NotImplementedException($"Request {executionContext.RequestContext.RequestName} is not supported by InMemory DynamoDB.")
+            };
+        }
+
+        private BatchGetItemResponse BatchGetItem(BatchGetItemRequest batchGetItemRequest)
+        {
+            var items = batchGetItemRequest.RequestItems.Select(i =>
+            {
+                var table = _tables[i.Key];
+                var items = i.Value.Keys.Select(table.GetItem).ToList();
+                items = ProjectAttributes(items, i.Value.AttributesToGet);
+                return KeyValuePair.Create(i.Key, items);
+            });
+
+            return new BatchGetItemResponse
+            {
+                HttpStatusCode = HttpStatusCode.OK,
+                Responses = items.ToDictionary()
             };
         }
 
@@ -42,11 +61,7 @@ namespace DynamoDB.InMemoryTest
             var table = _tables[request.TableName];
 
             var items = table.QueryByKey(request.KeyConditions, request.IndexName);
-
-            if (items.Any() && request.AttributesToGet?.Any() == true)
-            {
-                items = items.Select(i => i.Where(i => request.AttributesToGet.Contains(i.Key)).ToDictionary()).ToList();
-            }
+            items = ProjectAttributes(items, request.AttributesToGet);
 
             return new QueryResponse
             {
@@ -123,6 +138,7 @@ namespace DynamoDB.InMemoryTest
         {
             var table = _tables[request.TableName];
             var item = table.GetItem(request.Key);
+            item = ProjectAttributes(item, request.AttributesToGet);
 
             if (item != null && request.AttributesToGet?.Any() == true)
             {
@@ -161,6 +177,24 @@ namespace DynamoDB.InMemoryTest
             return _tables.TryGetValue(request.TableName, out var table)
                 ? new DescribeTableResponse { HttpStatusCode = HttpStatusCode.OK, Table = table.TableDescription }
                 : new DescribeTableResponse { HttpStatusCode = HttpStatusCode.NotFound };
+        }
+
+        private Dictionary<string, AttributeValue> ProjectAttributes(Dictionary<string, AttributeValue> item, List<string> attributesToGet)
+        {
+            if (attributesToGet?.Any() == true)
+            {
+                item = item.Where(i => attributesToGet.Contains(i.Key)).ToDictionary();
+            }
+            return item;
+        }
+
+        private List<Dictionary<string, AttributeValue>> ProjectAttributes(List<Dictionary<string, AttributeValue>> items, List<string> attributesToGet)
+        {
+            if (attributesToGet?.Any() == true && items.Any())
+            {
+                items = items.Select(i => ProjectAttributes(i, attributesToGet)).ToList();
+            }
+            return items;
         }
     }
 }
