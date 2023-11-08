@@ -4,6 +4,7 @@ using Amazon.Runtime;
 using Amazon.Runtime.Internal;
 using System;
 using System.Collections.Concurrent;
+using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 
@@ -29,19 +30,55 @@ namespace DynamoDB.InMemoryTest
                 PutItemRequest putItemRequest => PutItem(putItemRequest),
                 UpdateItemRequest updateItemRequest => UpdateItem(updateItemRequest),
                 DeleteItemRequest deleteItemRequest => DeleteItem(deleteItemRequest),
+                BatchWriteItemRequest batchWriteItemRequest => BatchWriteItem(batchWriteItemRequest),
+                QueryRequest queryRequest => Query(queryRequest),
 
-                _ => throw new NotImplementedException()
+                _ => throw new NotImplementedException($"Request {executionContext.RequestContext.RequestName} is not supported by InMemory DynamoDB.")
             };
+        }
+
+        private QueryResponse Query(QueryRequest request)
+        {
+            var table = _tables[request.TableName];
+            var items = table.QueryByKey(request.KeyConditions);
+
+            if (items.Any() && request.AttributesToGet.Any())
+            {
+                items = items.Select(i => i.Where(i => request.AttributesToGet.Contains(i.Key)).ToDictionary()).ToList();
+            }
+
+            return new QueryResponse
+            {
+                HttpStatusCode = HttpStatusCode.OK,
+                Items = items,
+            };
+        }
+
+        private BatchWriteItemResponse BatchWriteItem(BatchWriteItemRequest request)
+        {
+            foreach (var (tableName, writeRequests) in request.RequestItems)
+            {
+                var table = _tables[tableName];
+                foreach (var write in writeRequests)
+                {
+                    if (write.PutRequest != null)
+                    {
+                        table.PutItem(write.PutRequest.Item);
+                    }
+                    else if (write.DeleteRequest != null)
+                    {
+                        table.DeleteItem(write.DeleteRequest.Key);
+                    }
+                }
+            }
+
+            return new BatchWriteItemResponse { HttpStatusCode = HttpStatusCode.OK };
         }
 
         private DeleteItemResponse DeleteItem(DeleteItemRequest request)
         {
             var table = _tables[request.TableName];
-            var item = table.GetItem(request.Key);
-            if (item != null)
-            {
-                table.Items.Remove(item);
-            }
+            table.DeleteItem(request.Key);
 
             return new DeleteItemResponse { HttpStatusCode = HttpStatusCode.OK };
         }
@@ -86,6 +123,11 @@ namespace DynamoDB.InMemoryTest
             var table = _tables[request.TableName];
             var item = table.GetItem(request.Key);
 
+            if (item != null && request.AttributesToGet.Any())
+            {
+                item = item.Where(i => request.AttributesToGet.Contains(i.Key)).ToDictionary();
+            }
+
             return new GetItemResponse
             {
                 HttpStatusCode = HttpStatusCode.OK,
@@ -97,7 +139,7 @@ namespace DynamoDB.InMemoryTest
         private PutItemResponse PutItem(PutItemRequest request)
         {
             var table = _tables[request.TableName];
-            table.Items.Add(request.Item);
+            table.PutItem(request.Item);
             return new PutItemResponse { HttpStatusCode = HttpStatusCode.OK };
         }
 
