@@ -2,6 +2,8 @@
 
   <PropertyGroup>
     <TargetFrameworks>net60</TargetFrameworks>
+	<Nullable>annotations</Nullable>
+	<LangVersion>12</LangVersion>
   </PropertyGroup>
 
   <ItemGroup>

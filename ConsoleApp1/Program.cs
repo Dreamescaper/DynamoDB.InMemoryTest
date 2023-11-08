@@ -21,6 +21,12 @@ await dynamoDbContext.SaveAsync(new Whatever { Key = "id" });
 
 var w = await dynamoDbContext.LoadAsync<Whatever>("id");
 
+await dynamoDbContext.DeleteAsync(w);
+
+w = await dynamoDbContext.LoadAsync<Whatever>("id");
+
+int i = 0;
+
 [DynamoDBTable("test-table")]
 class Whatever
 {
