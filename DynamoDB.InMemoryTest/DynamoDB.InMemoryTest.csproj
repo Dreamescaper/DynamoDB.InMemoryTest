@@ -2,12 +2,16 @@
 
   <PropertyGroup>
     <TargetFrameworks>net60</TargetFrameworks>
-	<Nullable>annotations</Nullable>
-	<LangVersion>12</LangVersion>
+    <Nullable>annotations</Nullable>
+    <LangVersion>12</LangVersion>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="AWSSDK.DynamoDBv2" Version="3.7.203.14" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EditorConfigFiles Remove="C:\Users\master\source\repos\DynamoDB.InMemoryTest\DynamoDB.InMemoryTest\.editorconfig" />
   </ItemGroup>
 
 </Project>

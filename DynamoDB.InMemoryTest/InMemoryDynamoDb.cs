@@ -6,101 +6,101 @@ using Amazon.Runtime.Internal;
 using System.Linq;
 using System.Reflection;
 
-namespace DynamoDB.InMemoryTest
+namespace DynamoDB.InMemoryTest;
+
+public partial class InMemoryDynamoDb : AmazonDynamoDBClient
 {
-    public partial class InMemoryDynamoDb : AmazonDynamoDBClient
+    public InMemoryDynamoDb() : base("test-access-key", "test-aws-secret", new AmazonDynamoDBConfig
     {
-        public InMemoryDynamoDb() : base("test-access-key", "test-aws-secret", new AmazonDynamoDBConfig
-        {
-            RegionEndpoint = RegionEndpoint.EUCentral1
-        })
-        {
+        RegionEndpoint = RegionEndpoint.EUCentral1
+    })
+    {
 
+    }
+
+    protected override void CustomizeRuntimePipeline(RuntimePipeline pipeline)
+    {
+        pipeline.AddHandler(new InMemoryPipelineHandler());
+    }
+
+    public InMemoryDynamoDb CreateTableFromType<T>(string tableNamePrefix = "")
+    {
+        var request = new CreateTableRequest();
+
+        var tableAttribute = typeof(T).GetCustomAttribute<DynamoDBTableAttribute>(true);
+        var tableName = tableNamePrefix + tableAttribute?.TableName ?? typeof(T).Name;
+        request.TableName = tableName;
+
+        var lowerCase = tableAttribute?.LowerCamelCaseProperties ?? false;
+
+        var props = typeof(T).GetProperties();
+        var (hashProp, hashAttribute) = props.Select(p => (p, a: p.GetCustomAttribute<DynamoDBHashKeyAttribute>())).FirstOrDefault(k => k.a != null);
+        if (hashProp != null)
+        {
+            var name = hashAttribute.AttributeName ?? hashProp.Name;
+            if (lowerCase)
+                name = name.ToLower();
+
+            request.KeySchema.Add(new KeySchemaElement { AttributeName = name, KeyType = KeyType.HASH });
+            request.AttributeDefinitions.Add(new AttributeDefinition { AttributeName = name, AttributeType = GetAttributeType(hashProp) });
         }
 
-        protected override void CustomizeRuntimePipeline(RuntimePipeline pipeline)
+        var (rangeProp, rangeAttribute) = props.Select(p => (p, a: p.GetCustomAttribute<DynamoDBRangeKeyAttribute>())).FirstOrDefault(k => k.a != null);
+        if (rangeProp != null)
         {
-            pipeline.AddHandler(new InMemoryPipelineHandler());
+            var name = rangeAttribute.AttributeName ?? rangeProp.Name;
+            if (lowerCase)
+                name = name.ToLower();
+
+            request.KeySchema.Add(new KeySchemaElement { AttributeName = name, KeyType = KeyType.RANGE });
+            request.AttributeDefinitions.Add(new AttributeDefinition { AttributeName = name, AttributeType = GetAttributeType(rangeProp) });
         }
 
-        public InMemoryDynamoDb AddTableFromType<T>(string tableNamePrefix = "")
+        var indexHashProps = props.Select(p => (p, a: p.GetCustomAttribute<DynamoDBGlobalSecondaryIndexHashKeyAttribute>())).Where(k => k.a != null);
+        var indexRangeProps = props.Select(p => (p, a: p.GetCustomAttribute<DynamoDBGlobalSecondaryIndexRangeKeyAttribute>())).Where(k => k.a != null);
+
+        foreach (var (indexHashProp, indexHashAttribute) in indexHashProps)
         {
-            var request = new CreateTableRequest();
+            var name = indexHashAttribute.AttributeName ?? indexHashProp.Name;
+            if (lowerCase)
+                name = name.ToLower();
 
-            var tableAttribute = typeof(T).GetCustomAttribute<DynamoDBTableAttribute>(true);
-            var tableName = tableNamePrefix + tableAttribute?.TableName ?? typeof(T).Name;
-            request.TableName = tableName;
-
-            var lowerCase = tableAttribute?.LowerCamelCaseProperties ?? false;
-
-            var props = typeof(T).GetProperties();
-            var (hashProp, hashAttribute) = props.Select(p => (p, a: p.GetCustomAttribute<DynamoDBHashKeyAttribute>())).FirstOrDefault(k => k.a != null);
-            if (hashProp != null)
+            request.GlobalSecondaryIndexes.Add(new GlobalSecondaryIndex
             {
-                var name = hashAttribute.AttributeName ?? hashProp.Name;
-                if (lowerCase)
-                    name = name.ToLower();
+                IndexName = indexHashAttribute.IndexNames[0],
+                KeySchema = { new KeySchemaElement { AttributeName = name, KeyType = KeyType.HASH } }
+            });
 
-                var type = hashProp.PropertyType == typeof(int) || hashProp.PropertyType == typeof(long)
-                    ? ScalarAttributeType.N
-                    : ScalarAttributeType.S;
-
-                request.KeySchema.Add(new KeySchemaElement { AttributeName = name, KeyType = KeyType.HASH });
-                request.AttributeDefinitions.Add(new AttributeDefinition { AttributeName = name, AttributeType = type });
-            }
-
-            var (rangeProp, rangeAttribute) = props.Select(p => (p, a: p.GetCustomAttribute<DynamoDBRangeKeyAttribute>())).FirstOrDefault(k => k.a != null);
-            if (rangeProp != null)
+            if (!request.AttributeDefinitions.Any(a => a.AttributeName == name))
             {
-                var name = rangeAttribute.AttributeName ?? rangeProp.Name;
-                if (lowerCase)
-                    name = name.ToLower();
-
-                var type = rangeProp.PropertyType == typeof(int) || rangeProp.PropertyType == typeof(long)
-                    ? ScalarAttributeType.N
-                    : ScalarAttributeType.S;
-
-                request.KeySchema.Add(new KeySchemaElement { AttributeName = name, KeyType = KeyType.RANGE });
-                request.AttributeDefinitions.Add(new AttributeDefinition { AttributeName = name, AttributeType = type });
+                request.AttributeDefinitions.Add(new AttributeDefinition { AttributeName = name, AttributeType = GetAttributeType(indexHashProp) });
             }
-
-            var indexHashProps = props.Select(p => (p, a: p.GetCustomAttribute<DynamoDBGlobalSecondaryIndexHashKeyAttribute>())).Where(k => k.a != null);
-            var indexRangeProps = props.Select(p => (p, a: p.GetCustomAttribute<DynamoDBGlobalSecondaryIndexRangeKeyAttribute>())).Where(k => k.a != null);
-
-            foreach (var (indexHashProp, indexHashAttribute) in indexHashProps)
-            {
-                var name = indexHashAttribute.AttributeName ?? indexHashProp.Name;
-                if (lowerCase)
-                    name = name.ToLower();
-
-                var type = indexHashProp.PropertyType == typeof(int) || indexHashProp.PropertyType == typeof(long)
-                    ? ScalarAttributeType.N
-                    : ScalarAttributeType.S;
-
-                request.GlobalSecondaryIndexes.Add(new GlobalSecondaryIndex
-                {
-                    IndexName = indexHashAttribute.IndexNames[0],
-                    KeySchema = { new KeySchemaElement { AttributeName = name, KeyType = KeyType.HASH } }
-                });
-            }
-
-            foreach (var (indexRangeProp, indexRangeAttribute) in indexRangeProps)
-            {
-                var name = indexRangeAttribute.AttributeName ?? indexRangeProp.Name;
-                if (lowerCase)
-                    name = name.ToLower();
-
-                var type = indexRangeProp.PropertyType == typeof(int) || indexRangeProp.PropertyType == typeof(long)
-                    ? ScalarAttributeType.N
-                    : ScalarAttributeType.S;
-
-                var index = request.GlobalSecondaryIndexes.First(i => i.IndexName == indexRangeAttribute.IndexNames[0]);
-                index.KeySchema.Add(new KeySchemaElement { AttributeName = name, KeyType = KeyType.RANGE });
-            }
-
-            CreateTableAsync(request).Wait();
-
-            return this;
         }
+
+        foreach (var (indexRangeProp, indexRangeAttribute) in indexRangeProps)
+        {
+            var name = indexRangeAttribute.AttributeName ?? indexRangeProp.Name;
+            if (lowerCase)
+                name = name.ToLower();
+
+            var index = request.GlobalSecondaryIndexes.First(i => i.IndexName == indexRangeAttribute.IndexNames[0]);
+            index.KeySchema.Add(new KeySchemaElement { AttributeName = name, KeyType = KeyType.RANGE });
+
+            if (!request.AttributeDefinitions.Any(a => a.AttributeName == name))
+            {
+                request.AttributeDefinitions.Add(new AttributeDefinition { AttributeName = name, AttributeType = GetAttributeType(indexRangeProp) });
+            }
+        }
+
+        CreateTableAsync(request).Wait();
+
+        return this;
+    }
+
+    private static ScalarAttributeType GetAttributeType(PropertyInfo hashProp)
+    {
+        return hashProp.PropertyType == typeof(int) || hashProp.PropertyType == typeof(long)
+            ? ScalarAttributeType.N
+            : ScalarAttributeType.S;
     }
 }

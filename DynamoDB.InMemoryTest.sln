@@ -5,7 +5,12 @@ VisualStudioVersion = 17.8.34227.203
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DynamoDB.InMemoryTest", "DynamoDB.InMemoryTest\DynamoDB.InMemoryTest.csproj", "{B74CC55E-930A-42F1-8263-CD898C6F2682}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ConsoleApp1", "ConsoleApp1\ConsoleApp1.csproj", "{316C9CBC-8F27-4131-A928-9462C93475D9}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DynamoDB.InMemoryTest.Tests", "DynamoDB.InMemoryTest.Tests\DynamoDB.InMemoryTest.Tests.csproj", "{210FA217-F0B4-4D90-9E2B-84232E1D4D35}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{9B9CE373-242F-48B8-A015-5A833E0747FE}"
+	ProjectSection(SolutionItems) = preProject
+		.editorconfig = .editorconfig
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -17,10 +22,10 @@ Global
 		{B74CC55E-930A-42F1-8263-CD898C6F2682}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B74CC55E-930A-42F1-8263-CD898C6F2682}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B74CC55E-930A-42F1-8263-CD898C6F2682}.Release|Any CPU.Build.0 = Release|Any CPU
-		{316C9CBC-8F27-4131-A928-9462C93475D9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{316C9CBC-8F27-4131-A928-9462C93475D9}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{316C9CBC-8F27-4131-A928-9462C93475D9}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{316C9CBC-8F27-4131-A928-9462C93475D9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{210FA217-F0B4-4D90-9E2B-84232E1D4D35}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{210FA217-F0B4-4D90-9E2B-84232E1D4D35}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{210FA217-F0B4-4D90-9E2B-84232E1D4D35}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{210FA217-F0B4-4D90-9E2B-84232E1D4D35}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
