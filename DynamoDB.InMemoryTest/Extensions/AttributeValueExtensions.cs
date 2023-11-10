@@ -68,21 +68,21 @@ internal static class AttributeValueExtensions
         {
             return value is string strValue
                 && conditionValues[0].GetValue() is string condValue
-                && strValue.StartsWith(condValue, StringComparison.InvariantCulture);
+                && strValue.StartsWith(condValue, StringComparison.Ordinal);
         }
 
         if (comparison == ComparisonOperator.CONTAINS)
         {
             return value is string strValue
                 && conditionValues[0].GetValue() is string condValue
-                && strValue.Contains(condValue, StringComparison.InvariantCulture);
+                && strValue.Contains(condValue, StringComparison.Ordinal);
         }
 
         if (comparison == ComparisonOperator.NOT_CONTAINS)
         {
             return value is string strValue
                 && conditionValues[0].GetValue() is string condValue
-                && !strValue.Contains(condValue, StringComparison.InvariantCulture);
+                && !strValue.Contains(condValue, StringComparison.Ordinal);
         }
 
         throw new NotImplementedException($"Comparison operator {comparison.Value} is not supported.");
