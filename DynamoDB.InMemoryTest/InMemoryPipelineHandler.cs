@@ -44,13 +44,13 @@ internal class InMemoryPipelineHandler : PipelineHandler
     private ScanResponse Scan(ScanRequest scanRequest)
     {
         var table = _tables[scanRequest.TableName];
-        var items = table.Items;
+        var items = table.Scan(scanRequest.ScanFilter);
 
         return new ScanResponse
         {
             HttpStatusCode = HttpStatusCode.OK,
             Count = items.Count,
-            ScannedCount = items.Count,
+            ScannedCount = table.Items.Count,
             Items = items
         };
     }
@@ -76,7 +76,7 @@ internal class InMemoryPipelineHandler : PipelineHandler
     {
         var table = _tables[request.TableName];
 
-        var items = table.QueryByKey(request.KeyConditions, request.IndexName);
+        var items = table.QueryByKey(request.KeyConditions, request.QueryFilter, request.IndexName);
         items = ProjectAttributes(items, request.AttributesToGet);
 
         return new QueryResponse

@@ -1,5 +1,6 @@
 ﻿using Amazon.DynamoDBv2.DataModel;
 using Amazon.DynamoDBv2.DocumentModel;
+using Amazon.DynamoDBv2.Model;
 using NUnit.Framework;
 
 namespace DynamoDB.InMemoryTest.Tests;
@@ -108,6 +109,49 @@ public class DynamoDBContextTests
     }
 
     [Test]
+    public async Task QueryAsync_WithKeyConditions_Between()
+    {
+        var item1 = new ModelWithHashKeyAndRangeKey { Id = 4, Range = "abc", Data = "test-data-1" };
+        var item2 = new ModelWithHashKeyAndRangeKey { Id = 5, Range = "bcd", Data = "test-data-2" };
+        var item3 = new ModelWithHashKeyAndRangeKey { Id = 6, Range = "ab", Data = "test-data-3" };
+        var item4 = new ModelWithHashKeyAndRangeKey { Id = 7, Range = "abcd", Data = "test-data-4" };
+        await _context.SaveItemsAsync(item1, item2, item3, item4);
+
+        var queryConfig = new QueryOperationConfig();
+        queryConfig.Filter.AddCondition("Id", QueryOperator.Between, new List<AttributeValue>
+        {
+            new() { N = "5" },
+            new() { N = "6" },
+        });
+
+        var retrievedItems = await _context
+            .FromQueryAsync<ModelWithHashKeyAndRangeKey>(queryConfig)
+            .GetRemainingAsync();
+
+        Assert.That(retrievedItems, Is.EquivalentTo(new[] { item2, item3 }));
+    }
+
+    [Test]
+    public async Task QueryAsync_WithKeyConditions_WithFilter()
+    {
+        var item1 = new ModelWithHashKeyAndRangeKey { Id = 4, Range = "abc", Data = "1-test-data-1" };
+        var item2 = new ModelWithHashKeyAndRangeKey { Id = 5, Range = "bcd", Data = "1-test-data-2" };
+        var item3 = new ModelWithHashKeyAndRangeKey { Id = 5, Range = "ab", Data = "1-test-data-3" };
+        var item4 = new ModelWithHashKeyAndRangeKey { Id = 5, Range = "abcd", Data = "2-test-data-4" };
+        await _context.SaveItemsAsync(item1, item2, item3, item4);
+
+        var queryConfig = new QueryOperationConfig();
+        queryConfig.Filter.AddCondition("Id", QueryOperator.Equal, new List<AttributeValue> { new() { N = "5" } });
+        queryConfig.Filter.AddCondition("Data", ScanOperator.BeginsWith, new List<AttributeValue> { new() { S = "1" } });
+
+        var retrievedItems = await _context
+            .FromQueryAsync<ModelWithHashKeyAndRangeKey>(queryConfig)
+            .GetRemainingAsync();
+
+        Assert.That(retrievedItems, Is.EquivalentTo(new[] { item2, item3 }));
+    }
+
+    [Test]
     public async Task QueryAsync_BySecondaryIndex()
     {
         var item1 = new ModelWithIndex { Id = "4", Index = "a", Data = "test-data-1" };
@@ -136,6 +180,21 @@ public class DynamoDBContextTests
         var retrievedItems = await _context.ScanAsync<ModelWithIndex>([]).GetRemainingAsync();
 
         Assert.That(retrievedItems, Is.EquivalentTo(new[] { item1, item2, item3 }));
+    }
+
+    [Test]
+    public async Task ScanAsync_WithFilter()
+    {
+        var item1 = new ModelWithIndex { Id = "4", Index = "a", Data = "test-data-1" };
+        var item2 = new ModelWithIndex { Id = "5", Index = "b", Data = "test-data-2" };
+        var item3 = new ModelWithIndex { Id = "6", Index = "b", Data = "test-data-3" };
+        await _context.SaveItemsAsync(item1, item2, item3);
+
+        var retrievedItems = await _context
+            .ScanAsync<ModelWithIndex>([new ScanCondition("Data", ScanOperator.In, "test-data-2", "test-data-3")])
+            .GetRemainingAsync();
+
+        Assert.That(retrievedItems, Is.EquivalentTo(new[] { item2, item3 }));
     }
 
     [Test]

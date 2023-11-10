@@ -30,19 +30,25 @@ internal class InMemoryTable
             Items.Remove(existingItem);
     }
 
-    public List<Dictionary<string, AttributeValue>> QueryByKey(Dictionary<string, Condition> keyConditions, string indexName)
+    public List<Dictionary<string, AttributeValue>> QueryByKey(
+        Dictionary<string, Condition> keyConditions,
+        Dictionary<string, Condition> queryFilter,
+        string indexName)
     {
-        return Items.Where(i =>
+        return Items.Where(item =>
         {
-            var key = GetKey(i, indexName);
-            return keyConditions.All(c =>
-            {
-                if (!key.TryGetValue(c.Key, out var value))
-                    return false;
-
-                return value.ApplyCondition(c.Value);
-            });
+            var key = GetKey(item, indexName);
+            return keyConditions.All(c => key.TryGetValue(c.Key, out var value) && value.ApplyCondition(c.Value))
+                && queryFilter.All(c => item.TryGetValue(c.Key, out var value) && value.ApplyCondition(c.Value));
         }).ToList();
+    }
+
+    public List<Dictionary<string, AttributeValue>> Scan(Dictionary<string, Condition> scanFilter)
+    {
+        return Items
+            .Where(i => scanFilter.All(c =>
+                i.TryGetValue(c.Key, out var value) && value.ApplyCondition(c.Value)))
+            .ToList();
     }
 
     private Dictionary<string, AttributeValue> GetKey(Dictionary<string, AttributeValue> item, string indexName = null)
