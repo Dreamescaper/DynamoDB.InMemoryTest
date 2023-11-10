@@ -1,4 +1,5 @@
 ﻿using Amazon.DynamoDBv2.DataModel;
+using Amazon.DynamoDBv2.DocumentModel;
 using NUnit.Framework;
 
 namespace DynamoDB.InMemoryTest.Tests;
@@ -35,8 +36,7 @@ public class DynamoDBContextTests
     {
         var item = new ModelWithHashKey { Id = 5, Data = "test-data-1" };
         var otherItem = new ModelWithHashKey { Id = 6, Data = "test-data-2" };
-        await _context.SaveAsync(item);
-        await _context.SaveAsync(otherItem);
+        await _context.SaveItemsAsync(item, otherItem);
 
         var retrievedItem = await _context.LoadAsync<ModelWithHashKey>(item.Id);
         Assert.That(retrievedItem, Is.EqualTo(item));
@@ -47,8 +47,7 @@ public class DynamoDBContextTests
     {
         var item = new ModelWithHashKeyAndRangeKey { Id = 5, Range = "a", Data = "test-data-1" };
         var otherItem = new ModelWithHashKeyAndRangeKey { Id = 6, Range = "b", Data = "test-data-2" };
-        await _context.SaveAsync(item);
-        await _context.SaveAsync(otherItem);
+        await _context.SaveItemsAsync(item, otherItem);
 
         var retrievedItem = await _context.LoadAsync<ModelWithHashKeyAndRangeKey>(item.Id, item.Range);
 
@@ -85,13 +84,27 @@ public class DynamoDBContextTests
         var item1 = new ModelWithHashKeyAndRangeKey { Id = 5, Range = "a", Data = "test-data-1" };
         var item2 = new ModelWithHashKeyAndRangeKey { Id = 5, Range = "b", Data = "test-data-2" };
         var otherItem = new ModelWithHashKeyAndRangeKey { Id = 6, Range = "b", Data = "test-data-3" };
-        await _context.SaveAsync(item1);
-        await _context.SaveAsync(item2);
-        await _context.SaveAsync(otherItem);
+        await _context.SaveItemsAsync(item1, item2, otherItem);
 
         var retrievedItems = await _context.QueryAsync<ModelWithHashKeyAndRangeKey>(5L).GetRemainingAsync();
 
         Assert.That(retrievedItems, Is.EquivalentTo(new[] { item1, item2 }));
+    }
+
+    [Test]
+    public async Task QueryAsync_WithKeyConditions_StartsWith()
+    {
+        var item1 = new ModelWithHashKeyAndRangeKey { Id = 4, Range = "abc", Data = "test-data-1" };
+        var item2 = new ModelWithHashKeyAndRangeKey { Id = 5, Range = "bcd", Data = "test-data-2" };
+        var item3 = new ModelWithHashKeyAndRangeKey { Id = 5, Range = "ab", Data = "test-data-3" };
+        var item4 = new ModelWithHashKeyAndRangeKey { Id = 5, Range = "abcd", Data = "test-data-4" };
+        await _context.SaveItemsAsync(item1, item2, item3, item4);
+
+        var retrievedItems = await _context
+            .QueryAsync<ModelWithHashKeyAndRangeKey>(5L, QueryOperator.BeginsWith, ["a"])
+            .GetRemainingAsync();
+
+        Assert.That(retrievedItems, Is.EquivalentTo(new[] { item3, item4 }));
     }
 
     [Test]
@@ -100,9 +113,7 @@ public class DynamoDBContextTests
         var item1 = new ModelWithIndex { Id = "4", Index = "a", Data = "test-data-1" };
         var item2 = new ModelWithIndex { Id = "5", Index = "b", Data = "test-data-2" };
         var item3 = new ModelWithIndex { Id = "6", Index = "b", Data = "test-data-3" };
-        await _context.SaveAsync(item1);
-        await _context.SaveAsync(item2);
-        await _context.SaveAsync(item3);
+        await _context.SaveItemsAsync(item1, item2, item3);
 
         var retrievedItems = await _context
             .QueryAsync<ModelWithIndex>("b", new DynamoDBOperationConfig
@@ -120,9 +131,7 @@ public class DynamoDBContextTests
         var item1 = new ModelWithIndex { Id = "4", Index = "a", Data = "test-data-1" };
         var item2 = new ModelWithIndex { Id = "5", Index = "b", Data = "test-data-2" };
         var item3 = new ModelWithIndex { Id = "6", Index = "b", Data = "test-data-3" };
-        await _context.SaveAsync(item1);
-        await _context.SaveAsync(item2);
-        await _context.SaveAsync(item3);
+        await _context.SaveItemsAsync(item1, item2, item3);
 
         var retrievedItems = await _context.ScanAsync<ModelWithIndex>([]).GetRemainingAsync();
 
@@ -135,9 +144,7 @@ public class DynamoDBContextTests
         var item1 = new ModelWithHashKey { Id = 4, Data = "test-data-1" };
         var item2 = new ModelWithHashKey { Id = 5, Data = "test-data-2" };
         var item3 = new ModelWithHashKey { Id = 6, Data = "test-data-3" };
-        await _context.SaveAsync(item1);
-        await _context.SaveAsync(item2);
-        await _context.SaveAsync(item3);
+        await _context.SaveItemsAsync(item1, item2, item3);
 
         var batchRead = _context.CreateBatchGet<ModelWithHashKey>();
         batchRead.AddKey(5L);
@@ -153,9 +160,7 @@ public class DynamoDBContextTests
         var item1 = new ModelWithHashKeyAndRangeKey { Id = 5, Range = "a", Data = "test-data-1" };
         var item2 = new ModelWithHashKeyAndRangeKey { Id = 5, Range = "b", Data = "test-data-2" };
         var item3 = new ModelWithHashKeyAndRangeKey { Id = 6, Range = "b", Data = "test-data-3" };
-        await _context.SaveAsync(item1);
-        await _context.SaveAsync(item2);
-        await _context.SaveAsync(item3);
+        await _context.SaveItemsAsync(item1, item2, item3);
 
         var batchRead = _context.CreateBatchGet<ModelWithHashKeyAndRangeKey>();
         batchRead.AddKey(5L, "a");

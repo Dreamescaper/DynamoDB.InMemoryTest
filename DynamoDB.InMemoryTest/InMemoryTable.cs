@@ -1,5 +1,4 @@
-﻿using Amazon.DynamoDBv2;
-using Amazon.DynamoDBv2.Model;
+﻿using Amazon.DynamoDBv2.Model;
 using DynamoDB.InMemoryTest.Extensions;
 using System;
 using System.Collections.Generic;
@@ -41,14 +40,7 @@ internal class InMemoryTable
                 if (!key.TryGetValue(c.Key, out var value))
                     return false;
 
-                if (c.Value.ComparisonOperator == ComparisonOperator.EQ)
-                {
-                    return Equals(c.Value.AttributeValueList[0], value);
-                }
-                else
-                {
-                    throw new NotImplementedException();
-                }
+                return value.ApplyCondition(c.Value);
             });
         }).ToList();
     }
