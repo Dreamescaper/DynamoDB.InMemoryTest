@@ -41,10 +41,11 @@ internal class InMemoryPipelineHandler : PipelineHandler
         };
     }
 
-    private ScanResponse Scan(ScanRequest scanRequest)
+    private ScanResponse Scan(ScanRequest request)
     {
-        var table = _tables[scanRequest.TableName];
-        var items = table.Scan(scanRequest.ScanFilter);
+        var table = _tables[request.TableName];
+        var items = table.Scan(request.ScanFilter);
+        items = items.Take(request.Limit).ToList();
 
         return new ScanResponse
         {
@@ -78,11 +79,13 @@ internal class InMemoryPipelineHandler : PipelineHandler
 
         var items = table.QueryByKey(request.KeyConditions, request.QueryFilter, request.IndexName);
         items = ProjectAttributes(items, request.AttributesToGet);
+        items = items.Take(request.Limit).ToList();
 
         return new QueryResponse
         {
             HttpStatusCode = HttpStatusCode.OK,
             Items = items,
+            Count = items.Count
         };
     }
 

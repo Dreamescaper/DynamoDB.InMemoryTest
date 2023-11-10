@@ -35,19 +35,20 @@ internal class InMemoryTable
         Dictionary<string, Condition> queryFilter,
         string indexName)
     {
-        return Items.Where(item =>
-        {
-            var key = GetKey(item, indexName);
-            return keyConditions.All(c => key.TryGetValue(c.Key, out var value) && value.ApplyCondition(c.Value))
-                && queryFilter.All(c => item.TryGetValue(c.Key, out var value) && value.ApplyCondition(c.Value));
-        }).ToList();
+        return Items
+            .Where(item =>
+            {
+                var key = GetKey(item, indexName);
+                return keyConditions.All(c => key.TryGetValue(c.Key, out var value) && value.ApplyCondition(c.Value))
+                    && queryFilter.All(c => item.TryGetValue(c.Key, out var value) && value.ApplyCondition(c.Value));
+            })
+            .ToList();
     }
 
     public List<Dictionary<string, AttributeValue>> Scan(Dictionary<string, Condition> scanFilter)
     {
         return Items
-            .Where(i => scanFilter.All(c =>
-                i.TryGetValue(c.Key, out var value) && value.ApplyCondition(c.Value)))
+            .Where(i => scanFilter.All(c => i.TryGetValue(c.Key, out var value) && value.ApplyCondition(c.Value)))
             .ToList();
     }
 

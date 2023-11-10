@@ -93,6 +93,25 @@ public class DynamoDBContextTests
     }
 
     [Test]
+    public async Task QueryAsync_Limit()
+    {
+        var item1 = new ModelWithHashKeyAndRangeKey { Id = 5, Range = "a", Data = "test-data-1" };
+        var item2 = new ModelWithHashKeyAndRangeKey { Id = 5, Range = "b", Data = "test-data-2" };
+        var item3 = new ModelWithHashKeyAndRangeKey { Id = 5, Range = "c", Data = "test-data-3" };
+        await _context.SaveItemsAsync(item1, item2, item3);
+
+        var retrievedItems = await _context
+            .FromQueryAsync<ModelWithHashKeyAndRangeKey>(new QueryOperationConfig
+            {
+                Filter = new QueryFilter("Id", QueryOperator.Equal, 5L),
+                Limit = 2
+            })
+            .GetNextSetAsync();
+
+        Assert.That(retrievedItems, Is.EquivalentTo(new[] { item1, item2 }));
+    }
+
+    [Test]
     public async Task QueryAsync_WithKeyConditions_StartsWith()
     {
         var item1 = new ModelWithHashKeyAndRangeKey { Id = 4, Range = "abc", Data = "test-data-1" };
