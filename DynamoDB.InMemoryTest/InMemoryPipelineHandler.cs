@@ -36,16 +36,31 @@ internal class InMemoryPipelineHandler : PipelineHandler
             BatchGetItemRequest batchGetItemRequest => BatchGetItem(batchGetItemRequest),
             QueryRequest queryRequest => Query(queryRequest),
             ScanRequest scanRequest => Scan(scanRequest),
+            ExecuteStatementRequest executeStatementRequest => ExecuteStatement(executeStatementRequest),
 
             _ => throw new NotImplementedException($"Request {executionContext.RequestContext.RequestName} is not supported by InMemory DynamoDB.")
+        };
+    }
+
+    private ExecuteStatementResponse ExecuteStatement(ExecuteStatementRequest request)
+    {
+        var parsed = PartiQLStatementParser.Parse(request.Statement);
+        var table = _tables[parsed.TableName];
+        var items = table.Scan(parsed.Conditions, parsed.ConditionalOperator);
+        items = ProjectAttributes(items, parsed.AttributesToGet);
+        return new ExecuteStatementResponse
+        {
+            HttpStatusCode = HttpStatusCode.OK,
+            Items = items
         };
     }
 
     private ScanResponse Scan(ScanRequest request)
     {
         var table = _tables[request.TableName];
-        var items = table.Scan(request.ScanFilter);
+        var items = table.Scan(request.ScanFilter, request.ConditionalOperator);
         items = items.Take(request.Limit).ToList();
+        items = ProjectAttributes(items, request.AttributesToGet);
 
         return new ScanResponse
         {

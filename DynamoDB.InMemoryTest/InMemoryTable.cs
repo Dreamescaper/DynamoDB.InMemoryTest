@@ -1,4 +1,5 @@
-﻿using Amazon.DynamoDBv2.Model;
+﻿using Amazon.DynamoDBv2;
+using Amazon.DynamoDBv2.Model;
 using DynamoDB.InMemoryTest.Extensions;
 using System;
 using System.Collections.Generic;
@@ -39,16 +40,15 @@ internal class InMemoryTable
             .Where(item =>
             {
                 var key = GetKey(item, indexName);
-                return keyConditions.All(c => key.TryGetValue(c.Key, out var value) && value.ApplyCondition(c.Value))
-                    && queryFilter.All(c => item.TryGetValue(c.Key, out var value) && value.ApplyCondition(c.Value));
+                return ApplyConditions(key, keyConditions) && ApplyConditions(item, queryFilter);
             })
             .ToList();
     }
 
-    public List<Dictionary<string, AttributeValue>> Scan(Dictionary<string, Condition> scanFilter)
+    public List<Dictionary<string, AttributeValue>> Scan(Dictionary<string, Condition> scanFilter, ConditionalOperator op)
     {
         return Items
-            .Where(i => scanFilter.All(c => i.TryGetValue(c.Key, out var value) && value.ApplyCondition(c.Value)))
+            .Where(i => ApplyConditions(i, scanFilter, op))
             .ToList();
     }
 
@@ -70,5 +70,12 @@ internal class InMemoryTable
     private static bool Equals(AttributeValue v1, AttributeValue v2)
     {
         return Equals(v1.GetValue(), v2.GetValue());
+    }
+
+    private static bool ApplyConditions(Dictionary<string, AttributeValue> item, Dictionary<string, Condition> conditions, ConditionalOperator conditionalOperator = null)
+    {
+        return conditionalOperator == ConditionalOperator.OR
+            ? conditions.Any(c => item.TryGetValue(c.Key, out var value) && value.ApplyCondition(c.Value))
+            : conditions.All(c => item.TryGetValue(c.Key, out var value) && value.ApplyCondition(c.Value));
     }
 }
