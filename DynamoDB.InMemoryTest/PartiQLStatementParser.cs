@@ -58,7 +58,7 @@ internal static class PartiQLStatementParser
                 if (!match.Success)
                     throw new NotImplementedException($"Condition '{s}' is not supported by InMemory DynamoDb.");
 
-                var key = match.Groups["key"].Value;
+                var key = match.Groups["key"].Value.Trim('"');
                 var op = match.Groups["op"].Value.Trim();
                 var value = match.Groups["value"].Value;
 
